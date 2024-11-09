@@ -1,0 +1,295 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor Financeiro</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+
+        .tela {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .ativo {
+            display: block;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .transacao {
+            padding: 10px;
+            margin: 5px 0;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .vermelho {
+            color: red;
+        }
+
+        .verde {
+            color: green;
+        }
+
+        #resumoTopo {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .categoria-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        #outraCategoria {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="telaLogin" class="tela ativo">
+        <h2>Login</h2>
+        <input type="text" id="usuario" placeholder="Usuário">
+        <input type="password" id="senha" placeholder="Senha">
+        <button onclick="fazerLogin()">Entrar</button>
+        <button onclick="mostrarTela('telaCadastro')" style="background-color: #666;">Cadastrar Novo Usuário</button>
+    </div>
+
+    <div id="telaCadastro" class="tela">
+        <h2>Cadastro de Usuário</h2>
+        <input type="text" id="novoUsuario" placeholder="Nome de usuário">
+        <input type="password" id="novaSenha" placeholder="Senha">
+        <input type="password" id="confirmarSenha" placeholder="Confirmar senha">
+        <button onclick="cadastrarUsuario()">Cadastrar</button>
+        <button onclick="mostrarTela('telaLogin')" style="background-color: #666;">Voltar</button>
+    </div>
+
+    <div id="telaMain" class="tela">
+        <h2>Controle Financeiro</h2>
+        <div id="resumoTopo"></div>
+        
+        <select id="tipo">
+            <option value="receita">Receita</option>
+            <option value="despesa">Despesa</option>
+        </select>
+        
+        <input type="number" id="valor" placeholder="Valor" step="0.01">
+        
+        <div class="categoria-input">
+            <select id="categoria" onchange="verificarOutraCategoria()">
+                <option value="alimentacao">Alimentação</option>
+                <option value="transporte">Transporte</option>
+                <option value="moradia">Moradia</option>
+                <option value="lazer">Lazer</option>
+                <option value="salario">Salário</option>
+                <option value="servicos">Serviços</option>
+                <option value="saude">Saúde</option>
+                <option value="educacao">Educação</option>
+                <option value="vestuario">Vestuário</option>
+                <option value="outro">Outra categoria...</option>
+            </select>
+            <input type="text" id="outraCategoria" placeholder="Digite a categoria">
+        </div>
+
+        <input type="text" id="descricao" placeholder="Descrição (opcional)">
+        
+        <button onclick="adicionarTransacao()">Adicionar</button>
+        <button onclick="sair()" style="background-color: #dc3545;">Sair</button>
+        
+        <div id="listaTransacoes"></div>
+    </div>
+
+    <script>
+        const usuarios = {
+            'admin': { senha: 'admin', transacoes: [] }
+        };
+        let usuarioAtual = null;
+        let transacoes = [];
+
+        function mostrarTela(id) {
+            document.querySelectorAll('.tela').forEach(tela => tela.classList.remove('ativo'));
+            document.getElementById(id).classList.add('ativo');
+        }
+
+        function verificarOutraCategoria() {
+            const categoriaSelect = document.getElementById('categoria');
+            const outraCategoriaInput = document.getElementById('outraCategoria');
+            outraCategoriaInput.style.display = categoriaSelect.value === 'outro' ? 'block' : 'none';
+        }
+
+        function cadastrarUsuario() {
+            const usuario = document.getElementById('novoUsuario').value;
+            const senha = document.getElementById('novaSenha').value;
+            const confirmarSenha = document.getElementById('confirmarSenha').value;
+            
+            if (!usuario || !senha || !confirmarSenha) {
+                alert("Preencha todos os campos!");
+                return;
+            }
+
+            if (senha !== confirmarSenha) {
+                alert("As senhas não coincidem!");
+                return;
+            }
+
+            if (usuarios[usuario]) {
+                alert("Usuário já existe!");
+                return;
+            }
+
+            usuarios[usuario] = {
+                senha: senha,
+                transacoes: []
+            };
+
+            alert("Cadastro realizado com sucesso!");
+            document.getElementById('novoUsuario').value = '';
+            document.getElementById('novaSenha').value = '';
+            document.getElementById('confirmarSenha').value = '';
+            mostrarTela('telaLogin');
+        }
+
+        function fazerLogin() {
+            const usuario = document.getElementById('usuario').value;
+            const senha = document.getElementById('senha').value;
+            
+            if (!usuario || !senha) {
+                alert("Preencha todos os campos!");
+                return;
+            }
+
+            if (usuarios[usuario] && usuarios[usuario].senha === senha) {
+                usuarioAtual = usuario;
+                transacoes = usuarios[usuario].transacoes;
+                mostrarTela('telaMain');
+                atualizarLista();
+                atualizarResumo();
+            } else {
+                alert("Usuário ou senha incorretos!");
+            }
+        }
+
+        function sair() {
+            usuarioAtual = null;
+            transacoes = [];
+            mostrarTela('telaLogin');
+            document.getElementById('usuario').value = '';
+            document.getElementById('senha').value = '';
+        }
+
+        function adicionarTransacao() {
+            const tipo = document.getElementById('tipo').value;
+            const valor = parseFloat(document.getElementById('valor').value);
+            const categoriaSelect = document.getElementById('categoria');
+            const outraCategoriaInput = document.getElementById('outraCategoria');
+            const descricao = document.getElementById('descricao').value;
+
+            if (!valor || isNaN(valor)) {
+                alert("Digite um valor válido!");
+                return;
+            }
+
+            let categoria = categoriaSelect.value;
+            if (categoria === 'outro') {
+                if (!outraCategoriaInput.value.trim()) {
+                    alert("Digite a categoria personalizada!");
+                    return;
+                }
+                categoria = outraCategoriaInput.value.trim();
+            }
+
+            const transacao = {
+                tipo: tipo,
+                valor: tipo === 'despesa' ? -valor : valor,
+                categoria: categoria,
+                descricao: descricao,
+                data: new Date().toLocaleDateString()
+            };
+
+            transacoes.push(transacao);
+            usuarios[usuarioAtual].transacoes = transacoes;
+            atualizarLista();
+            atualizarResumo();
+            
+            // Limpar campos
+            document.getElementById('valor').value = '';
+            document.getElementById('descricao').value = '';
+            if (categoria === 'outro') {
+                outraCategoriaInput.value = '';
+                categoriaSelect.value = 'alimentacao';
+                verificarOutraCategoria();
+            }
+        }
+
+        function atualizarResumo() {
+            const total = transacoes.reduce((acc, t) => acc + t.valor, 0);
+            const receitas = transacoes.filter(t => t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
+            const despesas = Math.abs(transacoes.filter(t => t.valor < 0).reduce((acc, t) => acc + t.valor, 0));
+
+            document.getElementById('resumoTopo').innerHTML = `
+                <div class="transacao">
+                    <span>Receitas:</span>
+                    <span class="verde">R$ ${receitas.toFixed(2)}</span>
+                </div>
+                <div class="transacao">
+                    <span>Despesas:</span>
+                    <span class="vermelho">R$ ${despesas.toFixed(2)}</span>
+                </div>
+                <div class="transacao">
+                    <span>Saldo:</span>
+                    <span class="${total >= 0 ? 'verde' : 'vermelho'}">R$ ${total.toFixed(2)}</span>
+                </div>
+            `;
+        }
+
+        function atualizarLista() {
+            const lista = document.getElementById('listaTransacoes');
+            lista.innerHTML = '<h3>Últimas Transações</h3>';
+
+            transacoes.slice().reverse().forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'transacao';
+                const descricaoTexto = t.descricao ? ` - ${t.descricao}` : '';
+                div.innerHTML = `
+                    <span>${t.categoria}${descricaoTexto} (${t.data})</span>
+                    <span class="${t.valor >= 0 ? 'verde' : 'vermelho'}">
+                        R$ ${Math.abs(t.valor).toFixed(2)}
+                    </span>
+                `;
+                lista.appendChild(div);
+            });
+        }
+    </script>
+
+
+</body></html>
